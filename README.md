@@ -1,4 +1,4 @@
-[Serpent VR Design Document](https://docs.google.com/document/d/1zBL50LhAF7VWauPFi-SRTS3tk1QZCcPOWV377oveMLk/edit?usp=sharing)
+[Serpent VR Porject Proposal Document](https://docs.google.com/document/d/1zBL50LhAF7VWauPFi-SRTS3tk1QZCcPOWV377oveMLk/edit?usp=sharing)
 
 # Serpent VR | A Stealth-Action Espionage Game
 
