@@ -269,6 +269,8 @@ public class ThrowableRock : MonoBehaviour
         Collider[] outerColliders = Physics.OverlapSphere(transform.position, outerRadius, enemyLayer);
         foreach (Collider enemyCollider in outerColliders)
         {
+            // Temporarily commented out to avoid errors in the absence of EnemyAI script
+            /*
             EnemyAI enemy = enemyCollider.GetComponent<EnemyAI>();
             if (enemy != null)
             {
@@ -285,9 +287,10 @@ public class ThrowableRock : MonoBehaviour
                     enemy.InvestigatePosition(transform.position);
                 }
             }
+            */
         }
     }
-    
+
     private void UpdateEnemyAwareness()
     {
         // Keep updating enemies that might enter the area during the AoE lifetime
