@@ -1,17 +1,21 @@
+
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.TextCore.Text;
+using UnityEngine.AI;
+using Vector3 = UnityEngine.Vector3;
 
 public class CamoManager : MonoBehaviour
 {
-    private float camoIndex;
+    private int camoIndex;
 
     private CharacterController player;
 
+    [SerializeField]
+    private GameObject playerHead;
     private Vector3 playerVelocity;
+    
+    private Vector3 raycastOffset;
     private LayerMask groundMask;
 
     public Material currentCamo;
@@ -25,17 +29,20 @@ public class CamoManager : MonoBehaviour
     void Start()
     {
         groundMask = LayerMask.GetMask("Ground");
-        
+        raycastOffset = new Vector3(0, 1, 0);
         currentCamo = GameObject.Find("Wristwatch").GetComponent<Material>();
         player = GetComponent<CharacterController>();
         
+        playerVelocity = player.velocity;
     }
 
     // Update is called once per frame
     void Update()
     { 
-        materialOffset = compareSurface();
-        camoIndex = Mathf.Clamp(materialOffset + speedOffset + heightOffset, 0f, 100f);
+        print(playerVelocity);
+        materialOffset = compareSurface()[0];
+        heightOffset = compareSurface()[1];
+        camoIndex = (int)Math.Round(Mathf.Clamp((materialOffset + speedOffset + heightOffset), 0f, 100f));
         indexVal.text = camoIndex.ToString() + "%";
     }
 
@@ -75,18 +82,37 @@ public class CamoManager : MonoBehaviour
         return materialOffset;
     }
 
-    private float compareSurface()
+    private float[] compareSurface()
     {
         RaycastHit groundCheck;
+        float[] surfaceConditions = new float[2];
 
-        if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.down), out groundCheck, 10, groundMask))
+        if (Physics.Raycast(playerHead.transform.position, transform.TransformDirection(Vector3.down), out groundCheck, 2, groundMask))
         {
-            Debug.DrawRay(transform.position, transform.TransformDirection(Vector3.down) * 10, Color.red);
+            Debug.DrawRay(playerHead.transform.position, transform.TransformDirection(Vector3.down) * 2, Color.red);
             targetSurface = groundCheck.transform.gameObject.tag;
-            return getCamoVal(targetSurface);
+            surfaceConditions[0] = getCamoVal(targetSurface);
+
+            if(groundCheck.distance/1.8f > 0.5)
+            {
+                surfaceConditions[1] = 0f;
+            }
+            else if (groundCheck.distance/1.8f > 0.25)
+            {
+                surfaceConditions[1] = 25f;
+            }
+            else
+            {
+                surfaceConditions[1] = 50f;
+            }
+            
+            return surfaceConditions;
         } else {
-            Debug.DrawRay(transform.position, transform.TransformDirection(Vector3.down) * 10, Color.red);
-            return 0f;
+            Debug.DrawRay(playerHead.transform.position, transform.TransformDirection(Vector3.down) * 2, Color.red);
+            surfaceConditions[0] = 0;
+            surfaceConditions[1] = 100;
+            return surfaceConditions;
         }
     }
+
 }

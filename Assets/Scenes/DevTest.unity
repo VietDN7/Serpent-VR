@@ -570,7 +570,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 91fffc584ff73634bbc398095fef1162, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentCamo: {fileID: 0}
+  playerHead: {fileID: 960397036}
+  currentCamo: {fileID: 2100000, guid: 66232b6e8bd9d984a92a32f7114827fa, type: 2}
   indexVal: {fileID: 6598435662657679255}
 --- !u!1001 &626691783
 PrefabInstance:
@@ -806,6 +807,11 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 202364688, guid: f9bee97166852034f933eedbe8e9f059, type: 3}
   m_PrefabInstance: {fileID: 441087506}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &960397036 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1767192433, guid: f9bee97166852034f933eedbe8e9f059, type: 3}
+  m_PrefabInstance: {fileID: 441087506}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1249617917
 GameObject:
   m_ObjectHideFlags: 0
@@ -819,7 +825,7 @@ GameObject:
   - component: {fileID: 1249617919}
   - component: {fileID: 1249617918}
   - component: {fileID: 1249617922}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Plane
   m_TagString: Untagged
   m_Icon: {fileID: 0}
