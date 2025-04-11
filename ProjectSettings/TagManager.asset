@@ -4,13 +4,10 @@
 TagManager:
   serializedVersion: 2
   tags:
-  - Anchor
-<<<<<<< HEAD
-  - Grass
-  - Mud
-=======
   - Enemy
->>>>>>> viet
+  - Mud
+  - Grass
+  - Anchor
   layers:
   - Default
   - TransparentFX
@@ -18,8 +15,8 @@ TagManager:
   - Ground
   - Water
   - UI
-  - Enemy
-  - Player
+  - 
+  - 
   - 
   - 
   - 
