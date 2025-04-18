@@ -120,6 +120,75 @@ public class CamoManager : MonoBehaviour
                         break;
                 }
                 break;
+            case "snow_camo":
+                switch(camoName)
+                {
+                    case "Grass":
+                        materialOffset = 5f;
+                        break;
+                    case "Mud":
+                        materialOffset = 5f;
+                        break;
+                    case "Urban":
+                        materialOffset = 10f;
+                        break;
+                    case "Brick":
+                        materialOffset = 5f;
+                        break;
+                    case "Snow":
+                        materialOffset = 40f;
+                        break;
+                    case "Untagged":
+                        materialOffset = 0f;
+                        break;
+                }
+                break;
+            case "brick_camo":
+                switch(camoName)
+                {
+                    case "Grass":
+                        materialOffset = 5f;
+                        break;
+                    case "Mud":
+                        materialOffset = 15f;
+                        break;
+                    case "Urban":
+                        materialOffset = 10f;
+                        break;
+                    case "Brick":
+                        materialOffset = 40f;
+                        break;
+                    case "Snow":
+                        materialOffset = 5f;
+                        break;
+                    case "Untagged":
+                        materialOffset = 0f;
+                        break;
+                }
+                break;
+            case "no_camo":
+                switch(camoName)
+                {
+                    case "Grass":
+                        materialOffset = 0f;
+                        break;
+                    case "Mud":
+                        materialOffset = 0f;
+                        break;
+                    case "Urban":
+                        materialOffset = 0f;
+                        break;
+                    case "Brick":
+                        materialOffset = 0f;
+                        break;
+                    case "Snow":
+                        materialOffset = 0f;
+                        break;
+                    case "Untagged":
+                        materialOffset = 0f;
+                        break;
+                }
+                break;
         }
         return materialOffset;
     }
