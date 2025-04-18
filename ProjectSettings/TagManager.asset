@@ -8,6 +8,9 @@ TagManager:
   - Mud
   - Grass
   - Anchor
+  - Urban
+  - Brick
+  - Snow
   layers:
   - Default
   - TransparentFX

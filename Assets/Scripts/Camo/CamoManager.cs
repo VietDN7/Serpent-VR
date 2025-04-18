@@ -46,6 +46,7 @@ public class CamoManager : MonoBehaviour
         indexVal.text = camoIndex.ToString() + "%";
     }
 
+    // for the record I'm so sorry, this need to be turned into an array.
     private float getCamoVal(string camoName)
     {
         switch(currentCamo.mainTexture.name)
@@ -58,6 +59,15 @@ public class CamoManager : MonoBehaviour
                         break;
                     case "Mud":
                         materialOffset = 10f;
+                        break;
+                    case "Urban":
+                        materialOffset = 5f;
+                        break;
+                    case "Brick":
+                        materialOffset = 0f;
+                        break;
+                    case "Snow":
+                        materialOffset = 0f;
                         break;
                     case "Untagged":
                         materialOffset = 0f;
@@ -72,6 +82,38 @@ public class CamoManager : MonoBehaviour
                         break;
                     case "Mud":
                         materialOffset = 30f;
+                        break;
+                    case "Urban":
+                        materialOffset = 10f;
+                        break;
+                    case "Brick":
+                        materialOffset = 5f;
+                        break;
+                    case "Snow":
+                        materialOffset = 0f;
+                        break;
+                    case "Untagged":
+                        materialOffset = 0f;
+                        break;
+                }
+                break;
+            case "urban_camo":
+                switch(camoName)
+                {
+                    case "Grass":
+                        materialOffset = 10f;
+                        break;
+                    case "Mud":
+                        materialOffset = 15f;
+                        break;
+                    case "Urban":
+                        materialOffset = 30f;
+                        break;
+                    case "Brick":
+                        materialOffset = 5f;
+                        break;
+                    case "Snow":
+                        materialOffset = 0f;
                         break;
                     case "Untagged":
                         materialOffset = 0f;
