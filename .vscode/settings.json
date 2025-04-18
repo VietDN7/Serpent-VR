@@ -51,5 +51,6 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "Serpent VR.sln"
+    "SerpentVR.sln=======dotnet.defaultSolution": "Serpent-VR.sln>>>>>>>viet",
+    "dotnet.defaultSolution": "SerpentVR.sln"
 }
