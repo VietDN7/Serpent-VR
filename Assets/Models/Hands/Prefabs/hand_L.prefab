@@ -235,6 +235,10 @@ PrefabInstance:
       propertyPath: m_Materials.Array.data[0]
       value: 
       objectReference: {fileID: 2100000, guid: ab49653d576cc3d4984201dbf57a4209, type: 2}
+    - target: {fileID: -300024850992815409, guid: 72c6471fe572d2c42b419da0b64cdc1f, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 66232b6e8bd9d984a92a32f7114827fa, type: 2}
     - target: {fileID: 919132149155446097, guid: 72c6471fe572d2c42b419da0b64cdc1f, type: 3}
       propertyPath: m_Name
       value: hand_L
