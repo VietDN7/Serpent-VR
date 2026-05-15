@@ -174,12 +174,12 @@ MonoBehaviour:
   innerRadius: 5
   outerRadius: 10
   player: {fileID: 0}
-  roamSpeed: 2
-  investigateSpeed: 3
-  chaseSpeed: 6
+  roamSpeed: 1
+  investigateSpeed: 2
+  chaseSpeed: 3
   roamRadius: 20
   roamWaitTime: 2
-  rockInspectDuration: 5
+  rockInspectDuration: 10
   currentState: 0
   showDebugRadii: 1
   radiusSegments: 64

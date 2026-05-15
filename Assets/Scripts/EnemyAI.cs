@@ -17,9 +17,9 @@ public class EnemyAI : MonoBehaviour
     public Transform player;
 
     [Header("Movement Speeds")]
-    public float roamSpeed = 2f;
-    public float investigateSpeed = 3f;
-    public float chaseSpeed = 6f;
+    public float roamSpeed = 1f;
+    public float investigateSpeed = 2f;
+    public float chaseSpeed = 3f;
 
     [Header("Roaming")]
     [Tooltip("How far from the enemy's starting position random roam points are chosen.")]
@@ -30,7 +30,7 @@ public class EnemyAI : MonoBehaviour
 
     [Header("Rock Investigation")]
     [Tooltip("How long the enemy spends inspecting a rock before returning to roam.")]
-    public float rockInspectDuration = 5f;
+    public float rockInspectDuration = 10f;
 
     public enum State { Roaming, Investigating, Chasing, InspectRock }
 
@@ -174,14 +174,14 @@ public class EnemyAI : MonoBehaviour
             return;
         }
 
-        // Keep tracking player if they are the source (still in outer radius)
+        // Keep tracking player if they are the source
         if (distToPlayer <= outerRadius)
         {
             investigateTarget = player.position;
             agent.SetDestination(investigateTarget);
         }
 
-        // Reached the investigate position with no player nearby → roam
+        // Reached the investigate position with no player nearby -> roam
         if (HasReachedDestination() && distToPlayer > outerRadius)
         {
             EnterRoaming();
@@ -229,7 +229,7 @@ public class EnemyAI : MonoBehaviour
         StopRockInspectCoroutine();
 
         currentState = State.InspectRock;
-        agent.speed  = chaseSpeed;  // sprint to the rock
+        agent.speed = chaseSpeed;  // sprint to the rock
         investigateTarget = targetPosition;
         agent.SetDestination(investigateTarget);
     }
