@@ -20,17 +20,30 @@ public class CamoManager : MonoBehaviour
 
     public Material currentCamo;
     [SerializeField]
+    private GameObject leftHand;
+
+    [SerializeField]
     private TextMeshPro indexVal;
     private string targetSurface;
     private float materialOffset = 10f;
     private float speedOffset = 0f;
     private float heightOffset = 0f;
+
+
+    // Player Camoflauges
+    CamoObject forestCamo = new CamoObject("forest_camo", 25f, 10f, 5f, 0f, 0f);
+    CamoObject mudCamo = new CamoObject("mud_camo", 10f, 30f, 10f, 5f, 0f);
+    CamoObject urbanCamo = new CamoObject("urban_camo", 10f, 15f, 30f, 5f, 0f);
+    CamoObject snowCamo = new CamoObject("snow_camo", 5f, 5f, 10f, 5f, 40f);
+    CamoObject brickCamo = new CamoObject("brick_camo", 5f, 15f, 10f, 40f, 5f);
+
+    
     // Start is called before the first frame update
     void Start()
     {
         groundMask = LayerMask.GetMask("Ground");
         raycastOffset = new Vector3(0, 1, 0);
-        currentCamo = GameObject.Find("Wristwatch").GetComponent<Material>();
+        currentCamo = leftHand.transform.GetChild(0).GetChild(1).GetComponent<MeshRenderer>().material;//GetComponent<Material>();
         player = GetComponent<CharacterController>();
         
         playerVelocity = player.velocity;
@@ -39,7 +52,7 @@ public class CamoManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     { 
-        print(playerVelocity);
+        //print(playerVelocity);
         materialOffset = compareSurface()[0];
         heightOffset = compareSurface()[1];
         camoIndex = (int)Math.Round(Mathf.Clamp((materialOffset + speedOffset + heightOffset), 0f, 100f));
@@ -47,144 +60,39 @@ public class CamoManager : MonoBehaviour
     }
 
     // for the record I'm so sorry, this need to be turned into an array.
+    // Edit: It is not an array, but it looks a LOT better. That being said, still room for improvement.
+    //          Also I think it's unecessarily convoluted, but I had an idea here...
     private float getCamoVal(string camoName)
     {
+        print(currentCamo.mainTexture.name + " | " + camoName);
         switch(currentCamo.mainTexture.name)
         {
+            
             case "forest_camo":
-                switch(camoName)
-                {
-                    case "Grass":
-                        materialOffset = 25f;
-                        break;
-                    case "Mud":
-                        materialOffset = 10f;
-                        break;
-                    case "Urban":
-                        materialOffset = 5f;
-                        break;
-                    case "Brick":
-                        materialOffset = 0f;
-                        break;
-                    case "Snow":
-                        materialOffset = 0f;
-                        break;
-                    case "Untagged":
-                        materialOffset = 0f;
-                        break;
-                }
+                materialOffset = forestCamo.returnMaterialOffset(camoName);
                 break;
             case "mud_camo":
-                switch(camoName)
-                {
-                    case "Grass":
-                        materialOffset = 10f;
-                        break;
-                    case "Mud":
-                        materialOffset = 30f;
-                        break;
-                    case "Urban":
-                        materialOffset = 10f;
-                        break;
-                    case "Brick":
-                        materialOffset = 5f;
-                        break;
-                    case "Snow":
-                        materialOffset = 0f;
-                        break;
-                    case "Untagged":
-                        materialOffset = 0f;
-                        break;
-                }
+                materialOffset = mudCamo.returnMaterialOffset(camoName);
                 break;
             case "urban_camo":
-                switch(camoName)
-                {
-                    case "Grass":
-                        materialOffset = 10f;
-                        break;
-                    case "Mud":
-                        materialOffset = 15f;
-                        break;
-                    case "Urban":
-                        materialOffset = 30f;
-                        break;
-                    case "Brick":
-                        materialOffset = 5f;
-                        break;
-                    case "Snow":
-                        materialOffset = 0f;
-                        break;
-                    case "Untagged":
-                        materialOffset = 0f;
-                        break;
-                }
+                materialOffset = urbanCamo.returnMaterialOffset(camoName);
                 break;
             case "snow_camo":
-                switch(camoName)
-                {
-                    case "Grass":
-                        materialOffset = 5f;
-                        break;
-                    case "Mud":
-                        materialOffset = 5f;
-                        break;
-                    case "Urban":
-                        materialOffset = 10f;
-                        break;
-                    case "Brick":
-                        materialOffset = 5f;
-                        break;
-                    case "Snow":
-                        materialOffset = 40f;
-                        break;
-                    case "Untagged":
-                        materialOffset = 0f;
-                        break;
-                }
+                materialOffset = snowCamo.returnMaterialOffset(camoName);
                 break;
             case "brick_camo":
-                switch(camoName)
-                {
-                    case "Grass":
-                        materialOffset = 5f;
-                        break;
-                    case "Mud":
-                        materialOffset = 15f;
-                        break;
-                    case "Urban":
-                        materialOffset = 10f;
-                        break;
-                    case "Brick":
-                        materialOffset = 40f;
-                        break;
-                    case "Snow":
-                        materialOffset = 5f;
-                        break;
-                    case "Untagged":
-                        materialOffset = 0f;
-                        break;
-                }
+                materialOffset = brickCamo.returnMaterialOffset(camoName);
+                
                 break;
             case "no_camo":
                 switch(camoName)
                 {
                     case "Grass":
-                        materialOffset = 0f;
-                        break;
                     case "Mud":
-                        materialOffset = 0f;
-                        break;
                     case "Urban":
-                        materialOffset = 0f;
-                        break;
                     case "Brick":
-                        materialOffset = 0f;
-                        break;
                     case "Snow":
-                        materialOffset = 0f;
-                        break;
-                    case "Untagged":
+                    //case "Untagged":
                         materialOffset = 0f;
                         break;
                 }
