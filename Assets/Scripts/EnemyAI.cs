@@ -1,416 +1,372 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
+[RequireComponent(typeof(NavMeshAgent))]
 public class EnemyAI : MonoBehaviour
 {
-    public NavMeshAgent agent;
+    [Header("Detection Radii")]
+    [Tooltip("If player/rock enters this radius the enemy immediately charges.")]
+    public float innerRadius = 5f;
 
+    [Tooltip("If player/rock enters this radius the enemy starts walking toward it.")]
+    public float outerRadius = 10f;
+
+    [Header("References")]
+    [Tooltip("The player's Transform. Drag the player GameObject here.")]
     public Transform player;
 
-    public LayerMask whatIsGround, whatIsPlayer, whatIsObstacle;
+    [Header("Movement Speeds")]
+    public float roamSpeed = 2f;
+    public float investigateSpeed = 3f;
+    public float chaseSpeed = 6f;
 
-    public float health;
+    [Header("Roaming")]
+    [Tooltip("How far from the enemy's starting position random roam points are chosen.")]
+    public float roamRadius = 20f;
 
-    // Patroling
-    public Vector3 walkPoint;
-    bool walkPointSet;
-    public float walkPointRange;
+    [Tooltip("How long the enemy pauses at a roam waypoint before picking a new one.")]
+    public float roamWaitTime = 2f;
 
-    // Attacking
-    public float timeBetweenAttacks;
-    bool alreadyAttacked;
-    public GameObject projectile;
+    [Header("Rock Investigation")]
+    [Tooltip("How long the enemy spends inspecting a rock before returning to roam.")]
+    public float rockInspectDuration = 5f;
 
-    // States
-    public float sightRange, attackRange;
-    public bool playerInSightRange, playerInAttackRange;
-    
-    // Vision settings
-    public float visionConeAngle = 60f;
-    public float visionConeHeightOffset = 1.5f;
-    public bool drawVisionGizmos = true;
-    
-    // Distraction States
-    private bool investigating = false;
-    private Vector3 investigationPoint;
-    private bool playerPositionKnown = false;
-    private Vector3 lastKnownPlayerPosition;
-    public float investigationTime = 10f;
-    
-    // Alert indicators
-    public GameObject alertIndicator; // For the "!" symbol
-    public GameObject suspiciousIndicator; // For the "?" symbol
+    public enum State { Roaming, Investigating, Chasing, InspectRock }
+
+    [Header("Debug (read-only)")]
+    [SerializeField] private State currentState = State.Roaming;
+
+    [Header("Debug Visuals")]
+    [Tooltip("Show the inner and outer radii as circles in the Game view at runtime.")]
+    public bool showDebugRadii = false;
+
+    [Tooltip("How many segments make up each debug circle. Higher = smoother.")]
+    public int radiusSegments = 64;
+
+    public Color innerRadiusColor = Color.red;
+    public Color outerRadiusColor = Color.yellow;
+
+    private LineRenderer innerLineRenderer;
+    private LineRenderer outerLineRenderer;
+
+    private NavMeshAgent agent;
+    private Vector3 startPosition;
+    private Vector3 roamTarget;
+    private Vector3 investigateTarget;  // last known position of distraction
+    private bool isWaitingAtWaypoint = false;
+    private Coroutine roamWaitCoroutine;
+    private Coroutine rockInspectCoroutine;
 
     private void Awake()
     {
-        player = GameObject.Find("XR Origin (XR Rig)").transform;
         agent = GetComponent<NavMeshAgent>();
-        
-        // Hide indicators at start
-        if (alertIndicator != null) alertIndicator.SetActive(false);
-        if (suspiciousIndicator != null) suspiciousIndicator.SetActive(false);
+        startPosition = transform.position;
+        SetupDebugRenderers();
+    }
+
+    private void Start()
+    {
+        EnterRoaming();
     }
 
     private void Update()
     {
-        // Check if player is within attack range
-        playerInAttackRange = Physics.CheckSphere(transform.position, attackRange, whatIsPlayer);
-        
-        // Use raycast vision cone for sight detection
-        playerInSightRange = CanSeePlayer();
+        switch (currentState)
+        {
+            case State.Roaming: UpdateRoaming(); break;
+            case State.Investigating: UpdateInvestigating(); break;
+            case State.Chasing: UpdateChasing(); break;
+            case State.InspectRock: UpdateInspectRock(); break;
+        }
 
-        // Determine current state and action
-        if (playerInAttackRange && playerInSightRange)
+        UpdateDebugRenderers();
+    }
+
+    // ROAMING
+
+    private void EnterRoaming()
+    {
+        currentState = State.Roaming;
+        agent.speed = roamSpeed;
+        isWaitingAtWaypoint = false;
+        PickNewRoamTarget();
+    }
+
+    private void UpdateRoaming()
+    {
+        // Check if player has entered either radius
+        float distToPlayer = Vector3.Distance(transform.position, player.position);
+
+        if (distToPlayer <= innerRadius)
         {
-            // Direct sight is highest priority
-            investigating = false;
-            playerPositionKnown = false;
-            
-            ShowAlertIndicator();
-            
-            AttackPlayer();
+            EnterChasing();
+            return;
         }
-        else if (playerInSightRange)
+        if (distToPlayer <= outerRadius)
         {
-            // Chase if we can see player
-            investigating = false;
-            playerPositionKnown = false;
-            
-            ShowAlertIndicator();
-            
-            ChasePlayer();
+            EnterInvestigating(player.position);
+            return;
         }
-        else if (playerPositionKnown)
+
+        // Continue roaming
+        if (!isWaitingAtWaypoint && HasReachedDestination())
         {
-            // Go to last known player position from rock inner circle
-            ShowAlertIndicator();
-            
-            agent.SetDestination(lastKnownPlayerPosition);
-            
-            // If we reached the position and still don't see player
-            if (Vector3.Distance(transform.position, lastKnownPlayerPosition) < 2f)
+            roamWaitCoroutine = StartCoroutine(WaitThenRoam());
+        }
+    }
+
+    private void PickNewRoamTarget()
+    {
+        // Try up to 10 times to find a valid NavMesh point
+        for (int i = 0; i < 10; i++)
+        {
+            Vector3 randomDir = Random.insideUnitSphere * roamRadius;
+            randomDir += startPosition;
+            randomDir.y = transform.position.y;
+
+            if (NavMesh.SamplePosition(randomDir, out NavMeshHit hit, roamRadius, NavMesh.AllAreas))
             {
-                playerPositionKnown = false;
-                // Start patrolling the area
-                walkPointSet = false;
-                
-                HideAllIndicators();
+                roamTarget = hit.position;
+                agent.SetDestination(roamTarget);
+                return;
             }
         }
-        else if (investigating)
+    }
+
+    private IEnumerator WaitThenRoam()
+    {
+        isWaitingAtWaypoint = true;
+        yield return new WaitForSeconds(roamWaitTime);
+        isWaitingAtWaypoint = false;
+        PickNewRoamTarget();
+    }
+
+    // INVESTIGATING
+
+    public void AlertOuter(Vector3 targetPosition)
+    {
+        // Don't interrupt a chase for an outer-radius alert
+        if (currentState == State.Chasing) return;
+
+        EnterInvestigating(targetPosition);
+    }
+
+    private void EnterInvestigating(Vector3 targetPosition)
+    {
+        StopRoamCoroutine();
+        StopRockInspectCoroutine();
+
+        currentState = State.Investigating;
+        agent.speed = investigateSpeed;
+        investigateTarget = targetPosition;
+        agent.SetDestination(investigateTarget);
+    }
+
+    private void UpdateInvestigating()
+    {
+        // Re-evaluate player proximity every frame
+        float distToPlayer = Vector3.Distance(transform.position, player.position);
+
+        if (distToPlayer <= innerRadius)
         {
-            // Go investigate noise from rock outer circle
-            ShowSuspiciousIndicator();
-            
-            agent.SetDestination(investigationPoint);
-            
-            // If we reached the investigation point
-            if (Vector3.Distance(transform.position, investigationPoint) < 2f)
-            {
-                investigating = false;
-                // Start patrolling the area around the investigation point
-                SearchWalkPointNear(investigationPoint);
-                
-                StartCoroutine(HideIndicatorsAfterDelay(2f));
-            }
+            EnterChasing();
+            return;
         }
-        else
+
+        // Keep tracking player if they are the source (still in outer radius)
+        if (distToPlayer <= outerRadius)
         {
-            HideAllIndicators();
-            Patroling();
+            investigateTarget = player.position;
+            agent.SetDestination(investigateTarget);
         }
-    }
 
-    private bool CanSeePlayer()
-    {
-        if (Vector3.Distance(transform.position, player.position) < sightRange)
+        // Reached the investigate position with no player nearby → roam
+        if (HasReachedDestination() && distToPlayer > outerRadius)
         {
-            // Calculate direction to player
-            Vector3 directionToPlayer = (player.position - transform.position).normalized;
-            
-            // Check if player is within vision cone
-            float angleToPlayer = Vector3.Angle(transform.forward, directionToPlayer);
-            if (angleToPlayer < visionConeAngle / 2f)
-            {
-                // Cast ray to check for obstacles between enemy and player
-                RaycastHit hit;
-                Vector3 rayStart = transform.position + Vector3.up * visionConeHeightOffset;
-                
-                Debug.DrawRay(rayStart, directionToPlayer * sightRange, Color.red);
-                
-                if (Physics.Raycast(rayStart, directionToPlayer, out hit, sightRange, whatIsObstacle | whatIsPlayer))
-                {
-                    // Check if we hit the player or an obstacle first
-                    if (hit.transform.gameObject.layer == Mathf.Log(whatIsPlayer.value, 2))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private void Patroling()
-    {
-        if (!walkPointSet) SearchWalkPoint();
-
-        if (walkPointSet)
-            agent.SetDestination(walkPoint);
-
-        Vector3 distanceToWalkPoint = transform.position - walkPoint;
-
-        // Walkpoint reached
-        if (distanceToWalkPoint.magnitude < 1f)
-            walkPointSet = false;
-    }
-    
-    private void SearchWalkPoint()
-    {
-        // Calculate random point in range
-        float randomZ = Random.Range(-walkPointRange, walkPointRange);
-        float randomX = Random.Range(-walkPointRange, walkPointRange);
-
-        walkPoint = new Vector3(transform.position.x + randomX, transform.position.y, transform.position.z + randomZ);
-
-        if (Physics.Raycast(walkPoint, -transform.up, 2f, whatIsGround))
-            walkPointSet = true;
-    }
-    
-    private void SearchWalkPointNear(Vector3 center)
-    {
-        // Search around the given point rather than current position
-        float randomZ = Random.Range(-walkPointRange/2, walkPointRange/2);
-        float randomX = Random.Range(-walkPointRange/2, walkPointRange/2);
-
-        walkPoint = new Vector3(center.x + randomX, center.y, center.z + randomZ);
-
-        if (Physics.Raycast(walkPoint, -transform.up, 2f, whatIsGround))
-            walkPointSet = true;
-    }
-
-    private void ChasePlayer()
-    {
-        agent.SetDestination(player.position);
-    }
-
-    private void AttackPlayer()
-    {
-        // Make sure enemy doesn't move
-        agent.SetDestination(transform.position);
-
-        transform.LookAt(player);
-
-        if (!alreadyAttacked)
-        {
-            /// Attack code here
-            Rigidbody rb = Instantiate(projectile, transform.position + transform.forward + Vector3.up * 1.5f, 
-                    Quaternion.identity).GetComponent<Rigidbody>();
-            rb.AddForce(transform.forward * 32f, ForceMode.Impulse);
-            rb.AddForce(transform.up * 5f, ForceMode.Impulse);
-            /// End of attack code
-
-            alreadyAttacked = true;
-            Invoke(nameof(ResetAttack), timeBetweenAttacks);
+            EnterRoaming();
         }
     }
-    
-    private void ResetAttack()
+
+    // CHASING
+
+    private void EnterChasing()
     {
-        alreadyAttacked = false;
+        StopRoamCoroutine();
+        StopRockInspectCoroutine();
+
+        currentState = State.Chasing;
+        agent.speed = chaseSpeed;
     }
 
-    public void TakeDamage(int damage)
+    private void UpdateChasing()
     {
-        health -= damage;
+        float distToPlayer = Vector3.Distance(transform.position, player.position);
 
-        if (health <= 0) Invoke(nameof(DestroyEnemy), 0.5f);
-    }
-    
-    private void DestroyEnemy()
-    {
-        Destroy(gameObject);
-    }
-    
-    private void ShowAlertIndicator()
-    {
-        if (alertIndicator != null)
+        // Still within inner radius - keep charging
+        if (distToPlayer <= innerRadius)
         {
-            alertIndicator.SetActive(true);
-            if (suspiciousIndicator != null) suspiciousIndicator.SetActive(false);
+            agent.SetDestination(player.position);
+            return;
+        }
+
+        // Left inner but still in outer - downgrade to investigating
+        if (distToPlayer <= outerRadius)
+        {
+            EnterInvestigating(player.position);
+            return;
+        }
+
+        // Player fully escaped - go back to roaming
+        EnterRoaming();
+    }
+
+    // INSPECTING ROCK
+
+    public void AlertInner(Vector3 targetPosition)
+    {
+        StopRoamCoroutine();
+        StopRockInspectCoroutine();
+
+        currentState = State.InspectRock;
+        agent.speed  = chaseSpeed;  // sprint to the rock
+        investigateTarget = targetPosition;
+        agent.SetDestination(investigateTarget);
+    }
+
+    private void UpdateInspectRock()
+    {
+        // Check for player intrusion even while inspecting rock
+        float distToPlayer = Vector3.Distance(transform.position, player.position);
+        if (distToPlayer <= innerRadius)
+        {
+            EnterChasing();
+            return;
+        }
+        if (distToPlayer <= outerRadius)
+        {
+            EnterInvestigating(player.position);
+            return;
+        }
+
+        // Walk to rock position; once arrived, begin timed inspection
+        if (HasReachedDestination())
+        {
+            if (rockInspectCoroutine == null)
+                rockInspectCoroutine = StartCoroutine(InspectRockRoutine());
         }
     }
-    
-    private void ShowSuspiciousIndicator()
+
+    private IEnumerator InspectRockRoutine()
     {
-        if (suspiciousIndicator != null)
-        {
-            suspiciousIndicator.SetActive(true);
-            if (alertIndicator != null) alertIndicator.SetActive(false);
-        }
-    }
-    
-    private void HideAllIndicators()
-    {
-        if (alertIndicator != null) alertIndicator.SetActive(false);
-        if (suspiciousIndicator != null) suspiciousIndicator.SetActive(false);
-    }
-    
-    private IEnumerator HideIndicatorsAfterDelay(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        HideAllIndicators();
+        // Enemy "sniffs around" the rock position for rockInspectDuration seconds
+        yield return new WaitForSeconds(rockInspectDuration);
+        rockInspectCoroutine = null;
+        EnterRoaming();
     }
 
+    // HELPERS
+
+    private bool HasReachedDestination()
+    {
+        if (agent.pathPending) return false;
+        if (agent.remainingDistance > agent.stoppingDistance) return false;
+        if (agent.hasPath && agent.velocity.sqrMagnitude > 0.01f) return false;
+        return true;
+    }
+
+    private void StopRoamCoroutine()
+    {
+        if (roamWaitCoroutine != null)
+        {
+            StopCoroutine(roamWaitCoroutine);
+            roamWaitCoroutine = null;
+            isWaitingAtWaypoint = false;
+        }
+    }
+
+    private void StopRockInspectCoroutine()
+    {
+        if (rockInspectCoroutine != null)
+        {
+            StopCoroutine(rockInspectCoroutine);
+            rockInspectCoroutine = null;
+        }
+    }
+
+    // RUNTIME DEBUG VISUALS
+
+    private void SetupDebugRenderers()
+    {
+        innerLineRenderer = CreateCircleRenderer("InnerRadiusDebug", innerRadiusColor);
+        outerLineRenderer = CreateCircleRenderer("OuterRadiusDebug", outerRadiusColor);
+    }
+
+    private LineRenderer CreateCircleRenderer(string objName, Color color)
+    {
+        GameObject obj = new GameObject(objName);
+        obj.transform.SetParent(transform);
+        obj.transform.localPosition = Vector3.zero;
+
+        LineRenderer lr = obj.AddComponent<LineRenderer>();
+        lr.useWorldSpace = true;
+        lr.loop = true;
+        lr.positionCount = radiusSegments;
+        lr.startWidth = 0.05f;
+        lr.endWidth = 0.05f;
+        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        lr.receiveShadows = false;
+
+        lr.material = new Material(Shader.Find("Unlit/Color"));
+        lr.material.color = color;
+
+        lr.enabled = false;
+        return lr;
+    }
+
+    private void UpdateDebugRenderers()
+    {
+        if (innerLineRenderer == null || outerLineRenderer == null) return;
+
+        innerLineRenderer.enabled = showDebugRadii;
+        outerLineRenderer.enabled = showDebugRadii;
+
+        if (!showDebugRadii) return;
+
+        DrawCircle(innerLineRenderer, innerRadius);
+        DrawCircle(outerLineRenderer, outerRadius);
+    }
+
+    private void DrawCircle(LineRenderer lr, float radius)
+    {
+        float angleStep = 360f / radiusSegments;
+        float y = transform.position.y + 0.05f; // slightly above ground
+
+        for (int i = 0; i < radiusSegments; i++)
+        {
+            float angle = i * angleStep * Mathf.Deg2Rad;
+            float x = transform.position.x + Mathf.Cos(angle) * radius;
+            float z = transform.position.z + Mathf.Sin(angle) * radius;
+            lr.SetPosition(i, new Vector3(x, y, z));
+        }
+    }
+
+#if UNITY_EDITOR
     private void OnDrawGizmosSelected()
     {
-        if (!drawVisionGizmos) return;
-        
-        // Attack range
+        // Inner radius - red
+        Gizmos.color = new Color(1f, 0.1f, 0.1f, 0.35f);
+        Gizmos.DrawSphere(transform.position, innerRadius);
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, innerRadius);
+
+        // Outer radius - yellow
+        Gizmos.color = new Color(1f, 0.9f, 0.1f, 0.10f);
+        Gizmos.DrawSphere(transform.position, outerRadius);
+
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, attackRange);
-        
-        // Max sight range
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(transform.position, sightRange);
-        
-        // Vision cone
-        Gizmos.color = new Color(1f, 0.92f, 0.016f, 0.5f);
-        Vector3 origin = transform.position + Vector3.up * visionConeHeightOffset;
-        
-        // Draw the vision cone using lines
-        float halfAngle = visionConeAngle / 2f;
-        int segments = 10;
-        
-        // Calculate the vision cone
-        Vector3 forward = transform.forward * sightRange;
-        Quaternion leftRayRotation = Quaternion.AngleAxis(-halfAngle, Vector3.up);
-        Quaternion rightRayRotation = Quaternion.AngleAxis(halfAngle, Vector3.up);
-        Vector3 leftRayDirection = leftRayRotation * forward;
-        Vector3 rightRayDirection = rightRayRotation * forward;
-        
-        // Draw cone lines
-        Gizmos.DrawRay(origin, forward);
-        Gizmos.DrawRay(origin, leftRayDirection);
-        Gizmos.DrawRay(origin, rightRayDirection);
-        
-        // Draw arc between the two rays
-        Vector3 previousPoint = origin + leftRayDirection;
-        for (int i = 0; i < segments; i++)
-        {
-            float angle = -halfAngle + ((float)(i + 1) / segments) * visionConeAngle;
-            Quaternion rotation = Quaternion.AngleAxis(angle, Vector3.up);
-            Vector3 direction = rotation * forward;
-            Vector3 currentPoint = origin + direction;
-            
-            Gizmos.DrawLine(previousPoint, currentPoint);
-            previousPoint = currentPoint;
-        }
-        
-        // Add visualization for investigation state
-        if (investigating)
-        {
-            Gizmos.color = Color.blue;
-            Gizmos.DrawLine(transform.position, investigationPoint);
-            Gizmos.DrawWireSphere(investigationPoint, 1f);
-        }
-        
-        // Add visualization for known player position
-        if (playerPositionKnown)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawLine(transform.position, lastKnownPlayerPosition);
-            Gizmos.DrawWireSphere(lastKnownPlayerPosition, 1f);
-        }
+        Gizmos.DrawWireSphere(transform.position, outerRadius);
     }
-    
-    // IMPLEMENTATION OF THE ROCK DISTRACTION METHODS
-    // Called when the enemy is within the inner circle of a thrown rock
-    // This makes the enemy aware of the player's position
-    public void AlertToPlayerPosition(Vector3 playerPosition)
-    {
-        // Store the player's position
-        lastKnownPlayerPosition = playerPosition;
-        playerPositionKnown = true;
-        investigating = false;
-        
-        // Optional - alert nearby enemies
-        AlertNearbyEnemies(playerPosition);
-        
-        // Visual/audio feedback
-        StartCoroutine(AlertedFeedback());
-    }
-    
-    /// Called when the enemy is within the outer circle of a thrown rock
-    /// This makes the enemy investigate the rock's position
-    public void InvestigatePosition(Vector3 position)
-    {
-        // Only investigate if not already chasing or attacking player
-        if (!playerInSightRange && !playerInAttackRange && !playerPositionKnown)
-        {
-            investigationPoint = position;
-            investigating = true;
-            walkPointSet = false;
-            
-            // Set a timeout for investigation
-            StartCoroutine(InvestigationTimeout());
-            
-            // Visual/audio feedback
-            StartCoroutine(CuriousFeedback());
-        }
-    }
-    
-    private IEnumerator InvestigationTimeout()
-    {
-        yield return new WaitForSeconds(investigationTime);
-        if (investigating)
-        {
-            investigating = false;
-        }
-    }
-    
-    private void AlertNearbyEnemies(Vector3 playerPos)
-    {
-        // Find other enemies within a certain radius and alert them too
-        Collider[] nearbyEnemies = Physics.OverlapSphere(transform.position, 15f, LayerMask.GetMask("Enemy"));
-        foreach (var enemyCollider in nearbyEnemies)
-        {
-            if (enemyCollider.gameObject != gameObject)
-            {
-                EnemyAI enemy = enemyCollider.GetComponent<EnemyAI>();
-                if (enemy != null)
-                {
-                    enemy.AlertToPlayerPosition(playerPos);
-                }
-            }
-        }
-    }
-    
-    private IEnumerator AlertedFeedback()
-    {
-        // Change color to blue temporarily to show alertness
-        Renderer renderer = GetComponent<Renderer>();
-        if (renderer != null)
-        {
-            Color originalColor = renderer.material.color;
-            renderer.material.color = Color.blue;
-            yield return new WaitForSeconds(1.0f);
-            renderer.material.color = originalColor;
-        }
-    }
-    
-    private IEnumerator CuriousFeedback()
-    {
-        // Change color to yellow temporarily to show curiosity
-        Renderer renderer = GetComponent<Renderer>();
-        if (renderer != null)
-        {
-            Color originalColor = renderer.material.color;
-            renderer.material.color = Color.yellow;
-            yield return new WaitForSeconds(1.0f);
-            renderer.material.color = originalColor;
-        }
-    }
+#endif
 }
