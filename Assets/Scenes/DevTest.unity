@@ -1160,7 +1160,7 @@ GameObject:
   - component: {fileID: 1352138282}
   m_Layer: 3
   m_Name: Cube (5)
-  m_TagString: Mud
+  m_TagString: Snow
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1484,7 +1484,7 @@ GameObject:
   - component: {fileID: 1554317441}
   m_Layer: 3
   m_Name: Cube (4)
-  m_TagString: Grass
+  m_TagString: Brick
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
