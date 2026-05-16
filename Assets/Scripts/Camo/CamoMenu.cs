@@ -1,4 +1,5 @@
 using UnityEngine.XR.Interaction.Toolkit.Inputs.Readers;
+using UnityEngine.InputSystem;
 
 namespace UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets
 {

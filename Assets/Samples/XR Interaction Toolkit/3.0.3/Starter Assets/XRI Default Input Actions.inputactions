@@ -1001,7 +1001,7 @@
                 {
                     "name": "",
                     "id": "d8efba55-9793-49a7-a051-f8d691945483",
-                    "path": "<XRController>{LeftHand}/primaryButton",
+                    "path": "*/{MenuButton}",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -1523,7 +1523,7 @@
                     "name": "Select",
                     "type": "Button",
                     "id": "ac96c10b-c955-4a46-8e67-bf16bc069b53",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
