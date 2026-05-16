@@ -18,6 +18,8 @@ public class EnemyStats : MonoBehaviour
             transform.GetComponent<Rigidbody>().isKinematic = false;
             transform.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.None;
             transform.GetComponent<Rigidbody>().AddForce(0, 0, 1f, ForceMode.Impulse);
+            transform.GetComponent<EnemyAI>().enabled = false;
+            transform.GetComponent<UnityEngine.AI.NavMeshAgent>().enabled = false;
             //print(health);
             //Destroy(gameObject);
         }

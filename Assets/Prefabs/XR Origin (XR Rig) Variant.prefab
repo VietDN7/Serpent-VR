@@ -787,7 +787,7 @@ MonoBehaviour:
   m_AttachTransform: {fileID: 4154609069555390810}
   m_KeepSelectedTargetValid: 1
   m_DisableVisualsWhenBlockedInGroup: 1
-  m_StartingSelectedInteractable: {fileID: 2749910350577545623, guid: b9b9a544874a7fb4cba99ac7d5165057, type: 3}
+  m_StartingSelectedInteractable: {fileID: 0}
   m_StartingTargetFilter: {fileID: 0}
   m_HoverEntered:
     m_PersistentCalls:
